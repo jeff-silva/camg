@@ -1,0 +1,23 @@
+{
+  "name": "camg",
+  "version": "1.0.0",
+  "description": "Video Streaming",
+  "main": "index.js",
+  "scripts": {
+    "dev": "sh ./bin/dev.sh",
+    "down": "sh ./bin/down.sh",
+    "deploy": "sh ./bin/deploy.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeff-silva/camg.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jeff-silva/camg/issues"
+  },
+  "homepage": "https://github.com/jeff-silva/camg#readme"
+}

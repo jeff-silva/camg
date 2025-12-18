@@ -1,0 +1,108 @@
+volumes:
+  service_portainer_volume:
+  service_keycloak_volume:
+  service_minio_volume:
+  service_npm_volume:
+  service_dbm_volume:
+  service_db_volume:
+
+networks:
+  main_network:
+    driver: bridge
+
+services:
+  service-npm:
+    image: jc21/nginx-proxy-manager:latest
+    restart: unless-stopped
+    networks: [main_network]
+    ports:
+      - 80:80
+      - 81:81
+      - 443:443
+    volumes:
+      - service_npm_volume:/data
+      - ./service-npm/letsencrypt:/etc/letsencrypt
+
+  service-keycloak:
+    # build: ./service-keycloak
+    image: quay.io/keycloak/keycloak:latest
+    command: start-dev
+    restart: unless-stopped
+    networks: [main_network]
+    environment:
+      KEYCLOAK_ADMIN: main@grr.la
+      KEYCLOAK_ADMIN_PASSWORD: main@grr.la
+    volumes:
+      # - ./service-keycloak/providers:/opt/keycloak/providers
+      # - ./service-keycloak/themes:/opt/keycloak/themes
+      - service_keycloak_volume:/opt/keycloak/data/
+    expose: [8080]
+
+  service-db:
+    image: mongo:6.0
+    restart: unless-stopped
+    networks: [main_network]
+    expose: [27017]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: app
+      MONGO_INITDB_ROOT_PASSWORD: app
+    volumes:
+      - service_db_volume:/data/db
+
+  service-dbm:
+    image: dbgate/dbgate
+    depends_on: [service-db]
+    networks: [main_network]
+    expose: [3000]
+    volumes:
+      - service_dbm_volume:/root/.dbgate
+    environment:
+      LOGIN_MODE: static
+      LOGIN_USER: app
+      LOGIN_PASSWORD: app
+      CONNECTIONS: con1 # con1,con2,con3,...
+      LABEL_con1: app
+      URL_con1: mongodb://app:app@service-db:27017
+      ENGINE_con1: mongo@dbgate-plugin-mongo
+
+  service-app:
+    build: ./service-app
+    restart: unless-stopped
+    networks: [main_network]
+    depends_on: [service-db]
+    expose: [80]
+    volumes:
+      - ./service-app/src:/app
+    environment:
+      DB_CONNECTION: mongodb
+      MONGODB_URI: mongodb://app:app@service-db:27017/app?authSource=admin
+      MONGODB_DATABASE: app
+      SERVICE_APP_INIT: ${SERVICE_APP_INIT}
+
+  service-app-schedule:
+    extends: service-app
+    environment:
+      SERVICE_APP_INIT: php artisan schedule:work
+
+  service-minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    networks: [main_network]
+    expose: [9000, 9001]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: main@grr.la
+      MINIO_ROOT_PASSWORD: main@grr.la
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
+      MINIO_DEFAULT_BUCKETS: app
+    volumes:
+      - service_minio_volume:/data
+
+  service-front:
+    image: node:22
+    expose: [3000]
+    networks: [main_network]
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    volumes:
+      - ./service-front/src:/app
