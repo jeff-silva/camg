@@ -1,52 +1,103 @@
 <template>
   <div>
     <video
-      id="localVideo"
+      id="localVideoElem"
       autoplay
       muted
     ></video>
-    <button @click="publisher.initStream()">Iniciar Webcam</button>
+
     <video
-      id="liveVideo"
+      id="liveVideoElem"
       controls
       autoplay
+      playsinline
     ></video>
+
+    <br />
+    <button @click="publisher.initPublish()">initPublish</button>
+    <button @click="publisher.initPlay()">initPlay</button>
   </div>
 </template>
 
 <script setup>
 const publisher = reactive({
   init() {
-    publisher.localVideo = document.getElementById("localVideo");
-    publisher.liveVideo = document.getElementById("liveVideo");
-    publisher.pc = null;
-    console.log(publisher);
+    //
   },
 
-  async initStream() {
+  pcPublish: null,
+  pcPlay: null,
+
+  async initPublish() {
+    const localVideoElem = document.querySelector("#localVideoElem");
+
+    publisher.pcPublish = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
+    const pc = publisher.pcPublish;
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
-    publisher.localVideo.srcObject = stream;
-    publisher.pc = new RTCPeerConnection();
-    stream.getTracks().forEach((track) => publisher.pc.addTrack(track, stream));
-    const srsUrl = "wss://service-srs:8085/ws";
+    localVideoElem.srcObject = stream;
 
-    const offer = await publisher.pc.createOffer();
-    await publisher.pc.setLocalDescription(offer);
+    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
-    // Enviar SDP para SRS via fetch (WebRTC publish)
-    const resp = await fetch(
-      `http://service-srs:1985/rtc/v1/publish/streamid?stream=webcamstream`,
-      {
-        method: "POST",
-        body: offer.sdp,
-        headers: { "Content-Type": "application/sdp" },
-      }
-    );
-    const answerSDP = await resp.text();
-    await pc.setRemoteDescription({ type: "answer", sdp: answerSDP });
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    const res = await fetch("http://localhost:1985/rtc/v1/publish/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api: "http://localhost:1985/rtc/v1/publish/",
+        streamurl: "webrtc://localhost/live/webcam",
+        sdp: offer.sdp,
+      }),
+    });
+
+    const data = await res.json();
+    await pc.setRemoteDescription({ type: "answer", sdp: data.sdp });
+  },
+
+  async initPlay() {
+    const video = document.querySelector("#liveVideoElem");
+
+    publisher.pcPlay = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
+    const pc = publisher.pcPlay;
+
+    pc.ontrack = (e) => {
+      video.srcObject = e.streams[0];
+      // video.play();
+    };
+
+    pc.addTransceiver("video", { direction: "recvonly" });
+    pc.addTransceiver("audio", { direction: "recvonly" });
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    const res = await fetch("http://localhost:1985/rtc/v1/play/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api: "http://localhost:1985/rtc/v1/play/",
+        streamurl: "webrtc://localhost/live/webcam",
+        sdp: offer.sdp,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!data.sdp) {
+      console.error("SRS error:", data);
+      return;
+    }
+
+    await pc.setRemoteDescription({ type: "answer", sdp: data.sdp });
   },
 });
 
