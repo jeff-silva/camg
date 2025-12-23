@@ -100,21 +100,42 @@ services:
   service-front:
     image: node:22
     expose: [3000]
+    ports: [3000:3000]
     networks: [main_network]
     working_dir: /app
     command: sh -c "npm install && npm run dev"
     volumes:
       - ./service-front/src:/app
 
-  service-srs:
-    image: ossrs/srs:6
-    networks: [main_network]
-    expose: ["1935", "1985", "8080", "8000/udp", "10080/udp"]
+  service-mediamtx:
+    image: bluenviron/mediamtx:1
+    environment:
+      MTX_RTSPTRANSPORTS: tcp
+      MTX_WEBRTCADDITIONALHOSTS: 127.0.0.1
+      MTX_EXTERNALAUTHENTICATIONURL: http://service-app/auth
+    # volumes:
+    #   - ./service-mediamtx/mediamtx.yml:/mediamtx.yml
     ports:
-      [
-        "1935:1935",
-        "1985:1985",
-        "8080:8080",
-        "8000:8000/udp",
-        "10080:10080/udp",
-      ]
+      - 8554:8554
+      - 1935:1935
+      - 8888:8888
+      - 8889:8889
+      - 8890:8890/udp
+      - 8189:8189/udp
+
+  # service-srs:
+  #   image: ossrs/srs:6
+  #   networks: [main_network]
+  #   expose: ["1935", "1985", "8080", "8000/udp", "10080/udp"]
+  #   ports:
+  #     [
+  #       "1935:1935",
+  #       "1985:1985",
+  #       "8080:8080",
+  #       "8000:8000/udp",
+  #       "10080:10080/udp",
+  #     ]
+  #   volumes:
+  #     - ./service-srs/srs.conf:/usr/local/srs/conf/srs.conf
+  #   environment:
+  #     CANDIDATE: "192.168.1.10"

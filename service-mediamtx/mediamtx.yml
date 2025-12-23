@@ -1,0 +1,15 @@
+# mediamtx.yml
+webrtc: yes
+webrtcAddress: :8889
+webrtcICEUDP: yes
+# Importante para Docker no Linux:
+webrtcICEUDPBindAddr: :8189
+
+hls: yes
+
+paths:
+  all:
+    source: publisher
+    # Se quiser tirar a senha para testar:
+    # readUser: user
+    # readPass: pass

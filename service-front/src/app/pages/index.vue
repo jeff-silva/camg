@@ -34,7 +34,10 @@ const publisher = reactive({
     publisher.pcPublish = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
+
     const pc = publisher.pcPublish;
+    pc.addTransceiver("video", { direction: "sendonly" });
+    pc.addTransceiver("audio", { direction: "sendonly" });
 
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -47,6 +50,13 @@ const publisher = reactive({
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
+    await new Promise((resolve) => {
+      if (pc.iceGatheringState === "complete") return resolve();
+      pc.onicegatheringstatechange = () => {
+        if (pc.iceGatheringState === "complete") resolve();
+      };
+    });
+
     const res = await fetch("http://localhost:1985/rtc/v1/publish/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,6 +64,7 @@ const publisher = reactive({
         api: "http://localhost:1985/rtc/v1/publish/",
         streamurl: "webrtc://localhost/live/webcam",
         sdp: offer.sdp,
+        clientip: null,
       }),
     });
 
@@ -67,18 +78,32 @@ const publisher = reactive({
     publisher.pcPlay = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
+
     const pc = publisher.pcPlay;
-
-    pc.ontrack = (e) => {
-      video.srcObject = e.streams[0];
-      // video.play();
-    };
-
     pc.addTransceiver("video", { direction: "recvonly" });
     pc.addTransceiver("audio", { direction: "recvonly" });
 
+    pc.ontrack = (e) => {
+      if (video.srcObject) return;
+      console.log("ontrack");
+      video.srcObject = e.streams[0];
+      video.muted = true;
+      video.playsInline = true;
+
+      requestAnimationFrame(() => {
+        video.play().catch(() => {});
+      });
+    };
+
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
+
+    await new Promise((resolve) => {
+      if (pc.iceGatheringState === "complete") return resolve();
+      pc.onicegatheringstatechange = () => {
+        if (pc.iceGatheringState === "complete") resolve();
+      };
+    });
 
     const res = await fetch("http://localhost:1985/rtc/v1/play/", {
       method: "POST",
