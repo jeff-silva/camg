@@ -8,5 +8,7 @@ use App\Http\Controllers;
 //     return $request->user();
 // })->middleware('auth:sanctum');
 
-Controllers\Controller::register(Controllers\App\AppLoadController::class);
-Controllers\Controller::register(Controllers\Mediamtx\MediamtxAuthController::class);
+Controllers\Controller::register([
+    Controllers\App\AppLoadController::class,
+    Controllers\Mediamtx\MediamtxAuthController::class,
+]);

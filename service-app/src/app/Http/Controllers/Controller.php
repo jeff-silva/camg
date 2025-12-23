@@ -10,11 +10,33 @@ abstract class Controller
     public $methods = ['get'];
     public $middlewares = [];
 
-    static function register($class)
+    static function register(array $classes)
     {
-        $controller = app($class);
-        $router = Route::match($controller->methods, $controller->url, $class);
-        // $router->name(get_called_class());
-        // $router->middleware($controller->middlewares);
+        foreach ($classes as $class) {
+            $controller = app($class);
+            $router = Route::match($controller->methods, $controller->url, $class);
+            $router->name(preg_replace('/Controller$/', '', class_basename($class)));
+            $router->middleware($controller->middlewares);
+        }
+    }
+
+    protected function body()
+    {
+        return [];
+    }
+
+    protected function query()
+    {
+        return [];
+    }
+
+    protected function params()
+    {
+        return [];
+    }
+
+    protected function response($code, $data)
+    {
+        return response()->json($data, $code);
     }
 }

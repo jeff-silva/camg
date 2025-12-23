@@ -109,10 +109,12 @@ services:
 
   service-mediamtx:
     image: bluenviron/mediamtx:1
+    networks: [main_network]
     environment:
-      MTX_RTSPTRANSPORTS: tcp
-      MTX_WEBRTCADDITIONALHOSTS: 127.0.0.1
-      MTX_EXTERNALAUTHENTICATIONURL: http://service-app/auth
+      - MTX_WEBRTC=yes
+      - MTX_HLS=yes
+      - MTX_WEBRTCADDITIONALHOSTS=127.0.0.1
+      - MTX_EXTERNALAUTHENTICATIONURL=http://service-app/api/mediamtx/auth
     # volumes:
     #   - ./service-mediamtx/mediamtx.yml:/mediamtx.yml
     ports:
